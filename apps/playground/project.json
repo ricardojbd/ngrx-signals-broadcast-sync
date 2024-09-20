@@ -1,27 +1,27 @@
 {
-  "name": "ngrx-signals-broadcast-sync",
+  "name": "playground",
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "projectType": "application",
   "prefix": "app",
-  "sourceRoot": "apps/ngrx-signals-broadcast-sync/src",
+  "sourceRoot": "apps/playground/src",
   "tags": [],
   "targets": {
     "build": {
       "executor": "@angular-devkit/build-angular:application",
       "outputs": ["{options.outputPath}"],
       "options": {
-        "outputPath": "dist/apps/ngrx-signals-broadcast-sync",
-        "index": "apps/ngrx-signals-broadcast-sync/src/index.html",
-        "browser": "apps/ngrx-signals-broadcast-sync/src/main.ts",
+        "outputPath": "dist/apps/playground",
+        "index": "apps/playground/src/index.html",
+        "browser": "apps/playground/src/main.ts",
         "polyfills": ["zone.js"],
-        "tsConfig": "apps/ngrx-signals-broadcast-sync/tsconfig.app.json",
+        "tsConfig": "apps/playground/tsconfig.app.json",
         "assets": [
           {
             "glob": "**/*",
-            "input": "apps/ngrx-signals-broadcast-sync/public"
+            "input": "apps/playground/public"
           }
         ],
-        "styles": ["apps/ngrx-signals-broadcast-sync/src/styles.css"],
+        "styles": ["apps/playground/src/styles.css"],
         "scripts": []
       },
       "configurations": {
@@ -52,10 +52,10 @@
       "executor": "@angular-devkit/build-angular:dev-server",
       "configurations": {
         "production": {
-          "buildTarget": "ngrx-signals-broadcast-sync:build:production"
+          "buildTarget": "playground:build:production"
         },
         "development": {
-          "buildTarget": "ngrx-signals-broadcast-sync:build:development"
+          "buildTarget": "playground:build:development"
         }
       },
       "defaultConfiguration": "development"
@@ -63,7 +63,7 @@
     "extract-i18n": {
       "executor": "@angular-devkit/build-angular:extract-i18n",
       "options": {
-        "buildTarget": "ngrx-signals-broadcast-sync:build"
+        "buildTarget": "playground:build"
       }
     },
     "lint": {
@@ -73,14 +73,14 @@
       "executor": "@nx/jest:jest",
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
       "options": {
-        "jestConfig": "apps/ngrx-signals-broadcast-sync/jest.config.ts"
+        "jestConfig": "apps/playground/jest.config.ts"
       }
     },
     "serve-static": {
       "executor": "@nx/web:file-server",
       "options": {
-        "buildTarget": "ngrx-signals-broadcast-sync:build",
-        "staticFilePath": "dist/apps/ngrx-signals-broadcast-sync/browser",
+        "buildTarget": "playground:build",
+        "staticFilePath": "dist/apps/playground/browser",
         "spa": true
       }
     }

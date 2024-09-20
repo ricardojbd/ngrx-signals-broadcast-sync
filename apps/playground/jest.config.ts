@@ -1,8 +1,8 @@
 export default {
-  displayName: 'ngrx-signals-broadcast-sync',
+  displayName: 'playground',
   preset: '../../jest.preset.js',
   setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
-  coverageDirectory: '../../coverage/apps/ngrx-signals-broadcast-sync',
+  coverageDirectory: '../../coverage/apps/playground',
   transform: {
     '^.+\\.(ts|mjs|js|html)$': [
       'jest-preset-angular',

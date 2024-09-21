@@ -14,7 +14,11 @@
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "baseUrl": ".",
-    "paths": {}
+    "paths": {
+      "@ricardojbd/ngrx-signals-broadcast-sync": [
+        "libs/ngrx-signals-broadcast-sync/src/index.ts"
+      ]
+    }
   },
   "exclude": ["node_modules", "tmp"]
 }

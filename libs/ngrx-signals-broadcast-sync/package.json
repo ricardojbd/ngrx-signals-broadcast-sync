@@ -2,8 +2,12 @@
   "name": "@ricardojbd/ngrx-signals-broadcast-sync",
   "version": "0.0.1",
   "peerDependencies": {
-    "@angular/common": "^18.2.0",
-    "@angular/core": "^18.2.0"
+    "@angular/common": "^18.0.0",
+    "@angular/core": "^18.0.0",
+    "@ngrx/signals": "^18.0.0"
+  },
+  "dependencies": {
+    "lodash.isequal": "^4.5.0"
   },
   "sideEffects": false
 }

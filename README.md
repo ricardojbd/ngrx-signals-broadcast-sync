@@ -2,13 +2,17 @@
 
 <p align="center">
   <img 
-    width="150px"
-    style="padding: 20px 0;"
+    width="125px"
     alt="NgRx Signals Broadcast Channel Sync Logo" 
     title="NgRx Signals Broadcast Channel Sync Library Logo" 
     src="https://raw.githubusercontent.com/ricardojbd/ngrx-signals-broadcast-sync/refs/heads/main/ngrx-signal-broadcast-sync.svg" />
-    <br>
+    <br>  
   <em>This extension for the <a href="https://ngrx.io/guide/signals">NgRx Signals</a> store enables seamless synchronization of state slices between browser contexts and workers on te same origin by utilizing the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Broadcast_Channel_API">BroadcastChannel API</a>.</em>
+</p>
+<p align="center">
+  <a href="https://www.npmjs.com/package/@ricardojbd/ngrx-signals-broadcast-sync"><img src="https://img.shields.io/npm/v/@ricardojbd/ngrx-signals-broadcast-sync?logo=npm&style=flat-square" alt="NPM Package"/></a>
+  <a href="https://github.com/ricardojbd/ngrx-signals-broadcast-sync/blob/main/LICENSE"><img src="https://img.shields.io/github/license/ricardojbd/ngrx-signals-broadcast-sync?style=flat-square" alt="MIT License"/></a>
+  <a href="https://github.com/ricardojbd/ngrx-signals-broadcast-sync"><img src="https://img.shields.io/github/stars/ricardojbd/ngrx-signals-broadcast-sync?logo=github&style=flat-square" alt="Github Stars"/></a>
 </p>
 
 ## Installation

@@ -1,7 +1,9 @@
+const playwright = require('eslint-plugin-playwright');
 const nx = require('@nx/eslint-plugin');
 const baseConfig = require('../../eslint.config.js');
 
 module.exports = [
+  playwright.configs['flat/recommended'],
   ...baseConfig,
   ...nx.configs['flat/angular'],
   ...nx.configs['flat/angular-template'],
@@ -13,22 +15,27 @@ module.exports = [
         {
           type: 'attribute',
           prefix: 'app',
-          style: 'camelCase',
-        },
+          style: 'camelCase'
+        }
       ],
       '@angular-eslint/component-selector': [
         'error',
         {
           type: 'element',
           prefix: 'app',
-          style: 'kebab-case',
-        },
-      ],
-    },
+          style: 'kebab-case'
+        }
+      ]
+    }
   },
   {
     files: ['**/*.html'],
     // Override or add rules here
-    rules: {},
+    rules: {}
   },
+  {
+    files: ['**/*.ts', '**/*.js'],
+    // Override or add rules here
+    rules: {}
+  }
 ];

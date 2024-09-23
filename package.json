@@ -2,7 +2,12 @@
   "name": "@ngrx-signals-broadcast-sync/source",
   "version": "0.0.0",
   "license": "MIT",
-  "scripts": {},
+  "scripts": {
+    "copy-readme": "cp README.md libs/ngrx-signals-broadcast-sync/README.md",
+    "build:lib": "pnpm run copy-readme && nx build ngrx-signals-broadcast-sync",
+    "predeploy": "pnpm run build:lib",
+    "deploy": "npm publish dist/libs/ngrx-signals-broadcast-sync --access public"
+  },
   "private": true,
   "dependencies": {
     "@angular/animations": "~18.2.0",

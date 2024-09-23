@@ -1,6 +1,26 @@
 {
   "name": "@ricardojbd/ngrx-signals-broadcast-sync",
   "version": "0.0.1",
+  "description": "Enables seamless synchronization of state between browser contexts",
+  "publishConfig": {
+    "access": "public"
+  },
+  "bugs": {
+    "url": "https://github.com/ricardojbd/ngrx-signals-broadcast-sync/issues"
+  },
+  "homepage": "https://github.com/ricardojbd/ngrx-signals-broadcast-sync",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ricardojbd/ngrx-signals-broadcast-sync"
+  },
+  "keywords": [
+    "angular",
+    "javascript",
+    "typescript",
+    "state-management",
+    "ngrx-signals",
+    "broadcastchannel"
+  ],
   "peerDependencies": {
     "@angular/common": "^18.0.0",
     "@angular/core": "^18.0.0",
@@ -9,5 +29,6 @@
   "dependencies": {
     "lodash.isequal": "^4.5.0"
   },
-  "sideEffects": false
+  "sideEffects": false,
+  "license": "MIT"
 }

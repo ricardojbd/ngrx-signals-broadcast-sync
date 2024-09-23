@@ -3,5 +3,7 @@
   "dest": "../../dist/libs/ngrx-signals-broadcast-sync",
   "lib": {
     "entryFile": "src/index.ts"
-  }
+  },
+  "allowedNonPeerDependencies": ["lodash.isequal"],
+  "assets": ["./README.md"]
 }

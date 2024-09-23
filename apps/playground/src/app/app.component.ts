@@ -1,14 +1,18 @@
 import { Component } from '@angular/core';
 import { RouterModule } from '@angular/router';
-import { NxWelcomeComponent } from './nx-welcome.component';
 
 @Component({
   standalone: true,
-  imports: [NxWelcomeComponent, RouterModule],
+  imports: [RouterModule],
   selector: 'app-root',
-  templateUrl: './app.component.html',
-  styleUrl: './app.component.css',
+  template: `
+    <h1>Stores Playground</h1>
+    <nav>
+      <a routerLink="/">Home</a>
+      <a routerLink="/simple-store">Simple Store</a>
+    </nav>
+    <router-outlet></router-outlet>
+  `,
+  styles: ['nav>a { margin: 0 5px; }'],
 })
-export class AppComponent {
-  title = 'ngrx-signals-broadcast-sync';
-}
+export class AppComponent {}

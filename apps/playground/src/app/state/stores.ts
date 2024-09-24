@@ -41,7 +41,7 @@ export const MessageEventInterceptorStore = signalStore(
     channel: 'messageEventInterceptor',
     messageEventInterceptor: (event) => {
       console.log('message', event);
-      return event.data;
+      return { ...event.data, state: { user: 'override', isAdmin: true } };
     }
   })
 );
@@ -52,7 +52,7 @@ export const BroadcastStateInterceptorStore = signalStore(
     channel: 'broadcastStateInterceptor',
     broadcastStateInterceptor: (state) => {
       console.log('broadcast', state);
-      return state;
+      return { user: 'override', isAdmin: true };
     }
   })
 );

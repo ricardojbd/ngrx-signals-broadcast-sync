@@ -1,18 +1,17 @@
-import { Component } from '@angular/core';
+import { ChangeDetectionStrategy, Component } from '@angular/core';
 import { RouterModule } from '@angular/router';
+
+import { NavigationComponent } from './components';
 
 @Component({
   standalone: true,
-  imports: [RouterModule],
+  imports: [RouterModule, NavigationComponent],
   selector: 'app-root',
+  changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h1>Stores Playground</h1>
-    <nav>
-      <a routerLink="/">Home</a>
-      <a routerLink="/simple-store">Simple Store</a>
-    </nav>
-    <router-outlet></router-outlet>
-  `,
-  styles: ['nav>a { margin: 0 5px; }'],
+    <app-navigation />
+    <router-outlet />
+  `
 })
 export class AppComponent {}

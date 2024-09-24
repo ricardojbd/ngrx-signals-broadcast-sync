@@ -20,6 +20,7 @@
     "@angular/router": "~18.2.0",
     "@ngrx/signals": "^18.0.2",
     "lodash.isequal": "^4.5.0",
+    "ngxtension": "^4.0.0",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.14.3"

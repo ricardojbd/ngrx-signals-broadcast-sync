@@ -37,5 +37,12 @@ module.exports = [
     files: ['**/*.ts', '**/*.js'],
     // Override or add rules here
     rules: {}
+  },
+  ,
+  {
+    files: ['**/*.json'],
+    rules: {
+      '@typescript-eslint/no-unused-expressions': 'off'
+    }
   }
 ];

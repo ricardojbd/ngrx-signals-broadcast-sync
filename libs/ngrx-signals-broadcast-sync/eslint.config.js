@@ -6,12 +6,9 @@ module.exports = [
   {
     files: ['**/*.json'],
     rules: {
-      '@nx/dependency-checks': [
-        'error',
-        { ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs}'] },
-      ],
+      '@nx/dependency-checks': ['error', { ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs}'] }]
     },
-    languageOptions: { parser: require('jsonc-eslint-parser') },
+    languageOptions: { parser: require('jsonc-eslint-parser') }
   },
   ...nx.configs['flat/angular'],
   ...nx.configs['flat/angular-template'],
@@ -25,30 +22,36 @@ module.exports = [
           args: 'after-used',
           ignoreRestSiblings: true,
           argsIgnorePattern: '^_',
-          varsIgnorePattern: '^State$',
-        },
+          varsIgnorePattern: '^State$'
+        }
       ],
       '@angular-eslint/directive-selector': [
         'error',
         {
           type: 'attribute',
           prefix: 'lib',
-          style: 'camelCase',
-        },
+          style: 'camelCase'
+        }
       ],
       '@angular-eslint/component-selector': [
         'error',
         {
           type: 'element',
           prefix: 'lib',
-          style: 'kebab-case',
-        },
-      ],
-    },
+          style: 'kebab-case'
+        }
+      ]
+    }
   },
   {
     files: ['**/*.html'],
     // Override or add rules here
-    rules: {},
+    rules: {}
   },
+  {
+    files: ['**/*.json'],
+    rules: {
+      '@typescript-eslint/no-unused-expressions': 'off'
+    }
+  }
 ];

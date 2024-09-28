@@ -1,11 +1,21 @@
 const nx = require('@nx/eslint-plugin');
+const tsResolver = require('eslint-import-resolver-typescript');
+const eslintPluginImportX = require('eslint-plugin-import-x');
 
 module.exports = [
   ...nx.configs['flat/base'],
   ...nx.configs['flat/typescript'],
   ...nx.configs['flat/javascript'],
+  eslintPluginImportX.flatConfigs.typescript,
+  eslintPluginImportX.flatConfigs.recommended,
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
+    settings: {
+      'import-x/resolver': {
+        name: 'tsResolver',
+        resolver: tsResolver
+      }
+    },
     rules: {
       '@nx/enforce-module-boundaries': [
         'error',
@@ -18,6 +28,17 @@ module.exports = [
               onlyDependOnLibsWithTags: ['*']
             }
           ]
+        }
+      ],
+      'import-x/order': [
+        'error',
+        {
+          groups: [
+            ['builtin', 'external'],
+            ['internal', 'parent', 'sibling', 'index']
+          ],
+          'newlines-between': 'always',
+          alphabetize: { order: 'asc', caseInsensitive: true }
         }
       ]
     }

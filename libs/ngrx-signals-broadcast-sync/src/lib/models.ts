@@ -1,15 +1,60 @@
 import { SignalStoreFeatureResult } from '@ngrx/signals';
 
 /**
+ * Enum representing the types of messages used for state synchronization between clients.
+ */
+export const enum MessageType {
+  /**
+   * A message type representing a request for the current state from other clients.
+   */
+  Request = 'REQUEST_STATE',
+
+  /**
+   * A message type representing an update to the state that is being sent to other clients.
+   */
+  Update = 'UPDATE_STATE'
+}
+
+/**
+ * Represents a message requesting the current state from other connected clients.
+ */
+export type RequestMessage = {
+  /**
+   * The type of the message, indicating a request for the current state from other clients.
+   */
+  type: MessageType.Request;
+};
+
+/**
+ * Represents a message that contains a state update to be broadcasted to other clients.
+ */
+export type UpdateMessage<State> = {
+  /**
+   * The type of the message, indicating a state update is being broadcasted.
+   */
+  type: MessageType.Update;
+
+  /**
+   * A timestamp representing when the state update was created.
+   */
+  time: number;
+
+  /**
+   * The partial state object representing the updated state to be shared.
+   */
+  state: Partial<State>;
+};
+
+/**
  * Represents a broadcast message used for synchronizing state between clients.
  *
- * This message can either be a request for the current state (`REQUEST_STATE`) or an update
- * with the new state (`UPDATE_STATE`). These messages are transmitted over the broadcast channel
+ * This message can either be a request for the current state or an update
+ * with the new state. These messages are transmitted over the broadcast channel
  * to ensure state consistency across different contexts.
  *
  * @template State - The type of the state being synchronized.
  */
-export type Message<State> = { type: 'REQUEST_STATE' } | { type: 'UPDATE_STATE'; state: Partial<State> };
+export type Message<State> = RequestMessage | UpdateMessage<State>;
 
 /**
  * Options for configuring the broadcast synchronization behavior of the store.
@@ -46,9 +91,33 @@ export type Options<State> = {
    * This is useful when a new client connects and needs to recover the current state from other
    * connected clients, ensuring that it is synchronized with the latest state.
    *
-   * @default false
+   * @default true
    */
   requestState?: boolean;
+
+  /**
+   * Determines whether the first state change should be broadcasted to other clients.
+   *
+   * If set to `true`, the initial state update will be skipped and not broadcasted
+   * through the synchronization channel. This can be useful in scenarios where
+   * the initial state does not need to be shared, such as in cases where state
+   * is restored locally on initialization or requested to other connected clients.
+   *
+   * @default true
+   */
+  skipFirst?: boolean;
+
+  /**
+   * Determines whether to ignore and skip older state updates during synchronization.
+   *
+   * If set to `true`, any state update that is older than the current state will be
+   * ignored during the broadcast synchronization process. This is useful in scenarios
+   * where the current client has the most up-to-date state and should not be overridden
+   * by outdated state updates from other clients.
+   *
+   * @default true
+   */
+  skipOlder?: boolean;
 
   /**
    * Interceptor for handling incoming broadcast messages.
@@ -74,6 +143,14 @@ export type Options<State> = {
   broadcastStateInterceptor?: (state: Partial<State>) => Partial<State>;
 
   /**
+   * A stub function for mocking or overriding broadcast behavior, useful for testing environments.
+   *
+   * @param platformId The ID or context representing the current platform (e.g., server or client).
+   * @param broadcastChannel Optional broadcast channel object for testing or mock implementation.
+   */
+  onStubImplementation?: (platformId: object, broadcastChannel?: object) => void;
+
+  /**
    * Callback invoked when an error occurs while receiving a message from the broadcast channel.
    *
    * This function handles errors that occur when receiving messages. You can use it to log errors
@@ -82,6 +159,37 @@ export type Options<State> = {
    * @param event The error event that occurred while receiving a broadcast message.
    */
   onMessageError?: (event: MessageEvent) => void;
+
+  /**
+   * Callback invoked when the first broadcast is skipped.
+   *
+   * This function is called when the first state update broadcast is skipped, useful for handling
+   * cases where initial broadcast needs special handling.
+   *
+   * @param state The state that was skipped in the first broadcast.
+   */
+  onSkipFirstBroadcast?: (state: Partial<State>) => void;
+
+  /**
+   * Callback invoked when a duplicate broadcast is detected and skipped.
+   *
+   * This function is triggered when a state update that has already been broadcasted is detected
+   * and skipped to avoid redundant synchronization.
+   *
+   * @param state The state that was detected as duplicated and skipped.
+   */
+  onSkipDuplicatedBroadcast?: (state: Partial<State>) => void;
+
+  /**
+   * Callback invoked when an older state update is detected and skipped.
+   *
+   * This function is called when a state update older than the current state is received and
+   * skipped during synchronization to avoid overriding the current state with outdated data.
+   *
+   * @param args Object containing the last broadcasted timestamp, the incoming message's timestamp,
+   * and the state that was skipped.
+   */
+  onSkipOlder?: (args: { lastTime: number; time: number; state: Partial<State> }) => void;
 };
 
 /**
@@ -112,11 +220,11 @@ export type BroadcastSyncFeatureResult = SignalStoreFeatureResult & {
     /**
      * Requests the current state from other connected clients.
      *
-     * This internal method sends a request for the latest state to other clients. Other clients
+     * This method sends a request for the latest state to other clients. Other clients
      * will respond by broadcasting their current state. Useful when a new client connects and
      * needs to synchronize its state with others.
      */
-    _requestBroadcastState(): void;
+    requestBroadcastState(): void;
 
     /**
      * Applies a state update received from the broadcast channel.
@@ -128,6 +236,6 @@ export type BroadcastSyncFeatureResult = SignalStoreFeatureResult & {
      * @param state The state received from the broadcast that will be merged with
      * the current local state.
      */
-    _patchStateFromBroadcast<State extends object>(state: State): void;
+    _patchStateFromBroadcast<State extends object>(message: UpdateMessage<State>): void;
   };
 };

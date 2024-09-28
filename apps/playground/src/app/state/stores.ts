@@ -1,4 +1,4 @@
-import { withBroadcastSync } from '@ricardojbd/ngrx-signals-broadcast-sync';
+import { withBroadcastState } from '@ricardojbd/ngrx-signals-broadcast-sync';
 import { patchState, signalStore, signalStoreFeature, withHooks, withMethods, withState } from '@ngrx/signals';
 
 import { UserState } from './models';
@@ -21,23 +21,23 @@ function withUserState() {
   );
 }
 
-export const ChannelStore = signalStore(withUserState(), withBroadcastSync('channel'));
+export const ChannelStore = signalStore(withUserState(), withBroadcastState('channel'));
 
-export const ChannelOptionStore = signalStore(withUserState(), withBroadcastSync({ channel: 'channelOptions' }));
+export const ChannelOptionStore = signalStore(withUserState(), withBroadcastState({ channel: 'channelOptions' }));
 
 export const SelectStore = signalStore(
   withUserState(),
-  withBroadcastSync({ channel: 'select', select: (state) => ({ user: state.user }) })
+  withBroadcastState({ channel: 'select', select: (state) => ({ user: state.user }) })
 );
 
 export const RequestStateStore = signalStore(
   withUserState(),
-  withBroadcastSync({ channel: 'requestState', requestState: true })
+  withBroadcastState({ channel: 'requestState', requestState: true })
 );
 
 export const MessageEventInterceptorStore = signalStore(
   withUserState(),
-  withBroadcastSync({
+  withBroadcastState({
     channel: 'messageEventInterceptor',
     messageEventInterceptor: (event) => {
       console.log('message', event);
@@ -48,7 +48,7 @@ export const MessageEventInterceptorStore = signalStore(
 
 export const BroadcastStateInterceptorStore = signalStore(
   withUserState(),
-  withBroadcastSync({
+  withBroadcastState({
     channel: 'broadcastStateInterceptor',
     broadcastStateInterceptor: (state) => {
       console.log('broadcast', state);
@@ -59,7 +59,7 @@ export const BroadcastStateInterceptorStore = signalStore(
 
 export const OnMessageErrorStore = signalStore(
   withUserState(),
-  withBroadcastSync({
+  withBroadcastState({
     channel: 'onMessageError',
     onMessageError: (event) => console.error(event)
   }),

@@ -48,7 +48,8 @@ You can also pass an `Options` object instead of a string `channel` for more con
 
 - `channel`: (Required) The name of the broadcast channel used for state synchronization. This is the unique identifier for the communication channel between clients, allowing them to broadcast and receive state updates.
 - `select:` (Optional) Function to select a portion of the state to broadcast. This function can be used to limit the slice of the state that is sent over the broadcast channel by selecting only the relevant parts of the state. By default, the entire state is selected and broadcasted as `(state) => state`.
-- `requestState`: (Optional) If true, the store will request the current state from other connected clients on initialization. This is useful when a new client connects and needs to recover the current state from other connected clients, ensuring that it is synchronized with the latest state. The default value is `false`.
+- `requestState`: (Optional) If true, the store will request the current state from other connected clients on initialization. This is useful when a new client connects and needs to recover the current state from other connected clients, ensuring that it is synchronized with the latest state. The default value is `true`.
+- `skipFirst`: (Optional) Determines whether the first state change should be broadcasted to other clients. If set to `true`, the initial state update will be skipped and not broadcasted through the synchronization channel. This can be useful in scenarios where the initial state does not need to be shared, such as in cases where state is restored locally on initialization or requested to other connected clients. The default value is `true`.
 - `messageEventInterceptor`: (Optional) Interceptor for handling incoming broadcast messages. This function allows you to process or modify the incoming broadcast message before it is handled by the store. By default, the function extracts and returns the message's data as `(event) => event.data`.
 - `broadcastStateInterceptor`: (Optional) Interceptor for modifying the state before it is broadcasted. This function is called before the state is sent through the broadcast channel. It allows for any necessary modifications to the state before broadcasting it. By default, it returns the state as-is `(state) => state`.
 - `onMessageError`: (Optional) Callback invoked when an error occurs while receiving a message from the broadcast channel. This function handles errors that occur when receiving messages. You can use it to log errors or perform other error handling actions. By default, no action is taken `(event) => null`.
@@ -61,9 +62,10 @@ type User = { user: string | null, roles?: string[] }
 
 export const UserStore = signalStore(
   withState<User>({ user: null, roles: [] }), 
-  withBroadcastSync({ 
+  withBroadcastSync({
     channel: 'user@store',
     requestState: true,
+    skipFirst: true,
     select: (state) => ({ user: state.user }),
     messageEventInterceptor: (event) => {
       console.log('message', event);

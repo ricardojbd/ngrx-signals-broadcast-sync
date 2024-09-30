@@ -215,7 +215,7 @@ export type BroadcastSyncFeatureResult = SignalStoreFeatureResult & {
      *
      * By default, it is triggered when a state change requires synchronization, but you can manually force a broadcast by invoking this method.
      */
-    broadcastState(): void;
+    broadcastState(skipChecks?: boolean): void;
 
     /**
      * Requests the current state from other connected clients.
@@ -238,4 +238,13 @@ export type BroadcastSyncFeatureResult = SignalStoreFeatureResult & {
      */
     _patchStateFromBroadcast<State extends object>(message: UpdateMessage<State>): void;
   };
+};
+
+export const NOOP = () => null;
+
+export const BroadcastSyncStub: Pick<BroadcastSyncFeatureResult, 'methods'>['methods'] = {
+  getBroadcastChannel: NOOP,
+  broadcastState: NOOP,
+  requestBroadcastState: NOOP,
+  _patchStateFromBroadcast: NOOP
 };

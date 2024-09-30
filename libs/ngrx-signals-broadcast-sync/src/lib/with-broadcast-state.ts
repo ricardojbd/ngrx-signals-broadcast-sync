@@ -1,4 +1,3 @@
-import { isPlatformServer } from '@angular/common';
 import { effect, inject, PLATFORM_ID } from '@angular/core';
 import {
   signalStoreFeature,
@@ -11,8 +10,16 @@ import {
 } from '@ngrx/signals';
 import isEqual from 'lodash.isequal';
 
-import { BroadcastSyncStub, isInvalidUpdateMessage, NOOP } from './helpers';
-import { Message, Options, BroadcastSyncFeatureResult, UpdateMessage, MessageType } from './models';
+import { isInvalidUpdateMessage, isOlder, runGuard } from './helpers';
+import {
+  BroadcastSyncStub,
+  Message,
+  Options,
+  BroadcastSyncFeatureResult,
+  UpdateMessage,
+  MessageType,
+  NOOP
+} from './models';
 
 /**
  * Adds broadcast synchronization capabilities to a Signal Store.
@@ -73,19 +80,10 @@ export function withBroadcastState<Input extends SignalStoreFeatureResult>(
     onSkipOlder = NOOP
   } = typeof channelOrOptions === 'string' ? { channel: channelOrOptions } : channelOrOptions;
 
-  const runGuard = (platformId: object) => isPlatformServer(platformId) || window?.BroadcastChannel == null;
   let stateChannel: BroadcastChannel | null;
   let lastSyncedState: Partial<Input['state']> | null = null;
   let isFirst = skipFirst;
   let lastTime = 0;
-  const isOlder = (time: number): boolean => {
-    if (skipOlder && time < lastTime) {
-      return true;
-    }
-
-    lastTime = time;
-    return false;
-  };
 
   return signalStoreFeature(
     withMethods((store, platformId = inject(PLATFORM_ID)) => {
@@ -104,7 +102,8 @@ export function withBroadcastState<Input extends SignalStoreFeatureResult>(
 
           if (!skipChecks && isFirst) {
             isFirst = false;
-            return onSkipFirstBroadcast(state);
+            onSkipFirstBroadcast(state);
+            return;
           }
 
           if (!skipChecks && isEqual(state, lastSyncedState)) {
@@ -114,27 +113,26 @@ export function withBroadcastState<Input extends SignalStoreFeatureResult>(
           state = broadcastStateInterceptor(state);
           const time = Date.now();
 
-          if (!skipChecks && isOlder(time)) {
+          if (!skipChecks && isOlder({ time, lastTime, skipOlder })) {
             return onSkipOlder({ lastTime, time, state });
           }
 
-          if (stateChannel != null) {
-            lastSyncedState = state; // Avoid broadcast duplicated state
-            lastTime = time;
-            stateChannel.postMessage({ type: 'UPDATE_STATE', time, state });
-          }
+          lastSyncedState = state; // Avoid broadcast duplicated state
+          lastTime = time;
+          stateChannel?.postMessage({ type: MessageType.Update, time, state });
         },
 
         requestBroadcastState(): void {
           lastSyncedState = select(getState(store)); // Avoid broadcast initial state
-          stateChannel?.postMessage({ type: 'REQUEST_STATE' });
+          stateChannel?.postMessage({ type: MessageType.Request });
         },
 
         _patchStateFromBroadcast(message: UpdateMessage<Input['state']>) {
-          if (isOlder(message.time)) {
+          if (isOlder({ time: message.time, lastTime, skipOlder })) {
             return onSkipOlder({ lastTime, time: message.time, state: message.state });
           }
 
+          lastTime = message.time;
           lastSyncedState = message.state; // Avoid broadcast this state change
           patchState(store, message.state);
         }
@@ -147,6 +145,10 @@ export function withBroadcastState<Input extends SignalStoreFeatureResult>(
         }
 
         stateChannel = new BroadcastChannel(channel);
+
+        effect(() => {
+          store.broadcastState();
+        });
 
         if (requestState) {
           store.requestBroadcastState();
@@ -175,10 +177,6 @@ export function withBroadcastState<Input extends SignalStoreFeatureResult>(
         };
 
         stateChannel.onmessageerror = (event: MessageEvent) => onMessageError(event);
-
-        effect(() => {
-          store.broadcastState();
-        });
       },
 
       onDestroy() {

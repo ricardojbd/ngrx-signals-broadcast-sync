@@ -9,6 +9,13 @@ module.exports = [
   eslintPluginImportX.flatConfigs.typescript,
   eslintPluginImportX.flatConfigs.recommended,
   {
+    files: ['**/*.json'],
+    rules: {
+      '@nx/dependency-checks': ['error', { ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs}'] }]
+    },
+    languageOptions: { parser: require('jsonc-eslint-parser') }
+  },
+  {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
     settings: {
       'import-x/resolver': {
@@ -40,20 +47,14 @@ module.exports = [
           'newlines-between': 'always',
           alphabetize: { order: 'asc', caseInsensitive: true }
         }
-      ]
+      ],
+      'import/newline-after-import': 'error'
     }
   },
   {
     files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx'],
     // Override or add rules here
     rules: {}
-  },
-  {
-    files: ['**/*.json'],
-    rules: {
-      '@nx/dependency-checks': ['error', { ignoredFiles: ['{projectRoot}/eslint.config.{js,cjs,mjs}'] }]
-    },
-    languageOptions: { parser: require('jsonc-eslint-parser') }
   },
   {
     files: ['**/*'],

@@ -54,5 +54,12 @@ module.exports = [
     rules: {
       '@typescript-eslint/no-unused-expressions': 'off'
     }
+  },
+  {
+    files: ['**/*.spec.ts'],
+    rules: {
+      '@typescript-eslint/no-require-imports': 'off',
+      'no-explicit-any': 'off'
+    }
   }
 ];

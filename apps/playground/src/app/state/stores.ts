@@ -1,8 +1,7 @@
 import { withBroadcastState } from '@ricardojbd/ngrx-signals-broadcast-sync';
-import { patchState, signalStore, signalStoreFeature, withHooks, withMethods, withState } from '@ngrx/signals';
+import { patchState, signalStore, signalStoreFeature, withMethods, withState } from '@ngrx/signals';
 
 import { UserState } from './models';
-import { effect } from '@angular/core';
 
 function withUserState() {
   return signalStoreFeature(
@@ -21,66 +20,47 @@ function withUserState() {
   );
 }
 
-export const ChannelStore = signalStore(withUserState(), withBroadcastState('channel'));
+const onStubImplementation = (platformId: object, broadcastChannel?: object) =>
+  console.log('onStubImplementation', platformId, broadcastChannel);
+const onMessageError = (event: MessageEvent) => console.log('onMessageError', event);
+const onSkipFirstBroadcast = <State extends object>(state: State) => console.log('onSkipFirstBroadcast', state);
+const onSkipDuplicatedBroadcast = <State extends object>(state: State) =>
+  console.log('onSkipDuplicatedBroadcast', state);
+const onSkipOlder = <State extends object>(args: { lastTime: number; time: number; state: Partial<State> }) =>
+  console.log('onSkipOlder', args);
 
-export const ChannelOptionStore = signalStore(withUserState(), withBroadcastState({ channel: 'channelOptions' }));
-
-export const SelectStore = signalStore(
-  withUserState(),
-  withBroadcastState({ channel: 'select', select: (state) => ({ user: state.user }) })
-);
-
-export const RequestStateStore = signalStore(
-  withUserState(),
-  withBroadcastState({ channel: 'requestState', requestState: true })
-);
-
-export const MessageEventInterceptorStore = signalStore(
+export const DefaultStore = signalStore(
   withUserState(),
   withBroadcastState({
-    channel: 'messageEventInterceptor',
+    channel: 'default',
+    onStubImplementation,
+    onMessageError,
+    onSkipFirstBroadcast,
+    onSkipDuplicatedBroadcast,
+    onSkipOlder
+  })
+);
+
+export const OptionsStore = signalStore(
+  withUserState(),
+  withBroadcastState({
+    channel: 'options',
+    requestState: false,
+    skipFirst: false,
+    skipOlder: false,
+    select: (state) => ({ user: state.user }),
     messageEventInterceptor: (event) => {
-      console.log('message', event);
-      return { ...event.data, state: { user: 'override', isAdmin: true } };
-    }
-  })
-);
-
-export const BroadcastStateInterceptorStore = signalStore(
-  withUserState(),
-  withBroadcastState({
-    channel: 'broadcastStateInterceptor',
+      console.log('messageEventInterceptor', event);
+      return event.data;
+    },
     broadcastStateInterceptor: (state) => {
-      console.log('broadcast', state);
-      return { user: 'override', isAdmin: true };
-    }
-  })
-);
-
-export const OnMessageErrorStore = signalStore(
-  withUserState(),
-  withBroadcastState({
-    channel: 'onMessageError',
-    onMessageError: (event) => console.error(event)
-  }),
-  withMethods((store) => {
-    return {
-      broadcastError() {
-        const channel = store.getBroadcastChannel();
-        const errorEvent = new MessageEvent('messageerror', {
-          data: 'Simulated Error',
-          origin: window.origin
-        });
-        channel?.dispatchEvent(errorEvent);
-      }
-    };
-  }),
-  withHooks({
-    onInit(store) {
-      effect(() => {
-        store.isAdmin();
-        store.broadcastError();
-      });
-    }
+      console.log('broadcastStateInterceptor', state);
+      return state;
+    },
+    onStubImplementation,
+    onMessageError,
+    onSkipFirstBroadcast,
+    onSkipDuplicatedBroadcast,
+    onSkipOlder
   })
 );

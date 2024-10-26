@@ -1,7 +1,7 @@
 {
   "name": "@ricardojbd/ngrx-signals-broadcast-sync",
   "version": "0.0.1",
-  "description": "Enables seamless synchronization of state between browser contexts",
+  "description": "Enables synchronization of state between browsing contexts",
   "publishConfig": {
     "access": "public"
   },

@@ -1,7 +1,7 @@
 {
   "name": "@ricardojbd/ngrx-signals-broadcast-sync",
   "version": "0.0.1",
-  "description": "Enables synchronization of state between browsing contexts",
+  "description": "Enables synchronization of state between browsing contexts using the same storage partition and workers on the same origin",
   "publishConfig": {
     "access": "public"
   },
@@ -22,12 +22,9 @@
     "broadcastchannel"
   ],
   "peerDependencies": {
-    "@angular/common": "^18.0.0",
-    "@angular/core": "^18.0.0",
-    "@ngrx/signals": "^18.0.0"
-  },
-  "dependencies": {
-    "lodash.isequal": "^4.5.0"
+    "@angular/common": ">=18.0.0",
+    "@angular/core": ">=18.0.0",
+    "@ngrx/signals": ">=18.0.0"
   },
   "sideEffects": false,
   "license": "MIT"

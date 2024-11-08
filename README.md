@@ -7,7 +7,7 @@
     title="NgRx Signals Broadcast Channel Sync Library Logo" 
     src="https://raw.githubusercontent.com/ricardojbd/ngrx-signals-broadcast-sync/refs/heads/main/ngrx-signal-broadcast-sync.svg" />
     <br>  
-  <em>This extension for the <a href="https://ngrx.io/guide/signals">NgRx Signals</a> store enables seamless synchronization of state slices between browser contexts and workers on te same origin by utilizing the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Broadcast_Channel_API">BroadcastChannel API</a>.</em>
+  <em>This extension for the <a href="https://ngrx.io/guide/signals">NgRx Signals</a> store enables synchronization of state between browser contexts using the same storage partition and workers on te same origin using the <a href="https://developer.mozilla.org/en-US/docs/Web/API/Broadcast_Channel_API">BroadcastChannel API</a>.</em>
 </p>
 <p align="center">
   <a href="https://www.npmjs.com/package/@ricardojbd/ngrx-signals-broadcast-sync"><img src="https://img.shields.io/npm/v/@ricardojbd/ngrx-signals-broadcast-sync?logo=npm&style=flat-square" alt="NPM Package"/></a>
@@ -26,19 +26,23 @@ npm install @ricardojbd/ngrx-signals-broadcast-sync
 Ensure you are using `@ngrx/signals` version `v18.0.0` or later.
 
 > [!WARNING]
-> This library only functions in browser environments. It falls back to a stub implementation in server environments, such as Angular Universal.
+> This library only works in browser environments, and not in server environments, such as Angular Universal.
 
-## Usage
+## `withBroadcastState()`
 
-To use the library, simply apply the `withBroadcastSync()` function, passing the `channel` name:
+This function creates a `SignalStoreFeature` to synchronize state changes via a `BroadcastChannel`, enabling reactive, multi-context state management. The API allows developers to control synchronization behaviors, modify state before broadcasting or upon reception, and gracefully handle errors and cleanup.
+
+### Usage
+
+To use this library, simply apply the `withBroadcastState()` function to the `signalStore`, passing the `channel` name:
 
 ```ts
 import { signalStore, withState } from '@ngrx/signals';
-import { withBroadcastSync } from '@ricardojbd/ngrx-signals-broadcast-sync';
+import { withBroadcastState } from '@ricardojbd/ngrx-signals-broadcast-sync';
 
 export const UserStore = signalStore(
   withState({ user: null }), 
-  withBroadcastSync('user@store')
+  withBroadcastState('user@store')
 );
 ```
 
@@ -46,58 +50,74 @@ export const UserStore = signalStore(
 
 You can also pass an `Options` object instead of a string `channel` for more control. The Options object supports the following:
 
-- `channel`: (Required) The name of the broadcast channel used for state synchronization. This is the unique identifier for the communication channel between clients, allowing them to broadcast and receive state updates.
-- `select:` (Optional) Function to select a portion of the state to broadcast. This function can be used to limit the slice of the state that is sent over the broadcast channel by selecting only the relevant parts of the state. By default, the entire state is selected and broadcasted as `(state) => state`.
-- `requestState`: (Optional) If true, the store will request the current state from other connected clients on initialization. This is useful when a new client connects and needs to recover the current state from other connected clients, ensuring that it is synchronized with the latest state. The default value is `true`.
-- `skipFirst`: (Optional) Determines whether the first state change should be broadcasted to other clients. If set to `true`, the initial state update will be skipped and not broadcasted through the synchronization channel. This can be useful in scenarios where the initial state does not need to be shared, such as in cases where state is restored locally on initialization or requested to other connected clients. The default value is `true`.
-- `messageEventInterceptor`: (Optional) Interceptor for handling incoming broadcast messages. This function allows you to process or modify the incoming broadcast message before it is handled by the store. By default, the function extracts and returns the message's data as `(event) => event.data`.
-- `broadcastStateInterceptor`: (Optional) Interceptor for modifying the state before it is broadcasted. This function is called before the state is sent through the broadcast channel. It allows for any necessary modifications to the state before broadcasting it. By default, it returns the state as-is `(state) => state`.
-- `onMessageError`: (Optional) Callback invoked when an error occurs while receiving a message from the broadcast channel. This function handles errors that occur when receiving messages. You can use it to log errors or perform other error handling actions. By default, no action is taken `(event) => null`.
+- **channel**: The identifier for the communication channel used for broadcasting.
+- **runGuard**: An optional guard function to determine whether synchronization should be disabled based on the platform identifier. If the function returns `true`, synchronization will be prevented; if it returns `false`, synchronization will proceed as normal. By default it checks if `BroadcastChannel` is available. `(platformId) => !isBroadcastChannelAvailable(platformId),`
+- **onMessageInterceptor**: An optional interceptor function triggered when a message is received from the channel. It allows partial transformation of the received state or the option to ignore it. By default, it returns the message event data as-is `(event) => event.data`.
+- **postMessageInterceptor**: An optional interceptor function triggered before sending a message to the channel. Allows modification of the outgoing state before broadcasting. By default, it returns the state as-is `(state) => state`.
+- **effectInterceptor**: An optional interceptor function to manipulate state after any applied effects. Useful for selectively updating or refining the state after processing. By default, it returns the state as-is `(state) => state`.
+- **onMessageError**: An optional error handler for handling errors that occur when processing incoming messages. By default, no action is taken `(event) => void`.
+
+> [!NOTE]
+> If any of the interceptors returns `null`, the event execution will stop.
 
 ```ts
 import { signalStore, withState } from '@ngrx/signals';
-import { withBroadcastSync } from '@ricardojbd/ngrx-signals-broadcast-sync';
+import { withBroadcastState } from '@ricardojbd/ngrx-signals-broadcast-sync';
 
 type User = { user: string | null, roles?: string[] }
 
 export const UserStore = signalStore(
   withState<User>({ user: null, roles: [] }), 
-  withBroadcastSync({
+  withBroadcastState({
     channel: 'user@store',
-    requestState: true,
-    skipFirst: true,
-    select: (state) => ({ user: state.user }),
-    messageEventInterceptor: (event) => {
-      console.log('message', event);
-      return event.data;
+    runGuard: (platformId: object) => {
+      const isRunGuard = !isBroadcastChannelAvailable(platformId);
+      console.log('runGuard', isRunGuard);
+      return isRunGuard;
     },
-    broadcastStateInterceptor: (state) => {
-      console.log('broadcast', state);
+    onMessageInterceptor: (event) => {
+      console.log('onMessageInterceptor', event);
+      return event;
+    },
+    postMessageInterceptor: (state) => {
+      console.log('postMessageInterceptor', state);
       return state;
     },
-    onMessageError: (event) => console.error(event),
+    effectInterceptor: (state) => {
+      console.log('effectInterceptor', state);
+      return state;
+    },
+    onMessageError: (event) => {
+      console.log('onMessageError', event);
+    }
   })
 );
 ```
 
 ### API Methods
 
-Once `withBroadcastSync` is applied, it exposes two methods for working with the broadcast system:
+Once `withBroadcastState` is applied, it exposes two methods for working with the broadcast system:
 
-- `getBroadcastChannel()`: Retrieves the current `BroadcastChannel` used for synchronizing state or `null` if the channel is not available or has not been initialized.
-- `broadcastState()`: Sends the current state of the store through the broadcast channel to other connected clients. By default, it is triggered when a state change requires synchronization, but you can manually force a broadcast by invoking this method.
+- **getBroadcastChannel()**: Retrieves the current `BroadcastChannel` instance used for broadcasting state changes. Returns `undefined` if the `BroadcastChannel` is not available or has not been initialized.
+- **postState()**: Broadcasts the current state to all listeners on the `BroadcastChannel`.
 
 ```ts
 @Component(...)
 public class UserStoreComponent {
-  readonly #store: UserStore = inject(UserStore);
-  readonly channel: BroadcastChannel | null = this.#store.getBroadcastChannel()
+  readonly store: UserStore = inject(UserStore);
+  readonly channel: BroadcastChannel | undefined = this.store.getBroadcastChannel();
 
-  broadcastState(): void {
-    this.#store.broadcastState();
+  postState(): void {
+    this.store.postState();
   }
 }
 ```
+
+## `withBroadcastRequestState()`
+
+### Usage
+
+### API Methods
 
 ## Development Setup
 
@@ -116,8 +136,7 @@ We welcome all contributions, from bug fixes to new features!
 
 For bugs and feature requests, use [GitHub Issues](https://github.com/ricardojbd/ngrx-signals-broadcast-sync/issues).
 
-
-## License
+## Licensing
 
 This library is adapted from [Elf Sync State](https://github.com/RicardoJBarrios/elf-sync-state) and is inspired by the `withStorageSync` feature in the [NgRx Toolkit](https://github.com/angular-architects/ngrx-toolkit). 
 

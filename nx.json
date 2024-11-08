@@ -71,5 +71,6 @@
         "targetName": "e2e"
       }
     }
-  ]
+  ],
+  "useLegacyCache": true
 }

@@ -10,7 +10,7 @@ import { NavigationComponent } from './components';
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
     <h1>Stores Playground</h1>
-    <app-navigation />
+    <nav app-navigation></nav>
     <router-outlet />
   `
 })

@@ -1,4 +1,8 @@
-import { withBroadcastState } from '@ricardojbd/ngrx-signals-broadcast-sync';
+import {
+  isBroadcastChannelAvailable,
+  withBroadcastRequestState,
+  withBroadcastState
+} from '@ricardojbd/ngrx-signals-broadcast-sync';
 import { patchState, signalStore, signalStoreFeature, withMethods, withState } from '@ngrx/signals';
 
 import { UserState } from './models';
@@ -20,47 +24,51 @@ function withUserState() {
   );
 }
 
-const onStubImplementation = (platformId: object, broadcastChannel?: object) =>
-  console.log('onStubImplementation', platformId, broadcastChannel);
-const onMessageError = (event: MessageEvent) => console.log('onMessageError', event);
-const onSkipFirstBroadcast = <State extends object>(state: State) => console.log('onSkipFirstBroadcast', state);
-const onSkipDuplicatedBroadcast = <State extends object>(state: State) =>
-  console.log('onSkipDuplicatedBroadcast', state);
-const onSkipOlder = <State extends object>(args: { lastTime: number; time: number; state: Partial<State> }) =>
-  console.log('onSkipOlder', args);
-
-export const DefaultStore = signalStore(
-  withUserState(),
-  withBroadcastState({
-    channel: 'default',
-    onStubImplementation,
-    onMessageError,
-    onSkipFirstBroadcast,
-    onSkipDuplicatedBroadcast,
-    onSkipOlder
-  })
-);
+export const DefaultStore = signalStore(withUserState(), withBroadcastState('default@store'));
 
 export const OptionsStore = signalStore(
   withUserState(),
   withBroadcastState({
-    channel: 'options',
-    requestState: false,
-    skipFirst: false,
-    skipOlder: false,
-    select: (state) => ({ user: state.user }),
-    messageEventInterceptor: (event) => {
-      console.log('messageEventInterceptor', event);
+    channel: 'options@store',
+    runGuard: (platformId: object) => {
+      const isRunGuard = !isBroadcastChannelAvailable(platformId);
+      console.log('runGuard', isRunGuard);
+      return isRunGuard;
+    },
+    onMessageInterceptor: (event) => {
+      console.log('onMessageInterceptor', event);
       return event.data;
     },
-    broadcastStateInterceptor: (state) => {
-      console.log('broadcastStateInterceptor', state);
+    postMessageInterceptor: (state) => {
+      console.log('postMessageInterceptor', state);
       return state;
     },
-    onStubImplementation,
-    onMessageError,
-    onSkipFirstBroadcast,
-    onSkipDuplicatedBroadcast,
-    onSkipOlder
+    onMessageError: (event) => {
+      console.log('onMessageError', event);
+    }
+  })
+);
+
+export const RequestStore = signalStore(
+  withUserState(),
+  withBroadcastState('request@store'),
+  withBroadcastRequestState()
+);
+
+export const FilterStateStore = signalStore(
+  withUserState(),
+  withBroadcastState({
+    channel: 'filter@store'
+  })
+);
+
+export const FilterDuplicatedStore = signalStore(
+  withUserState(),
+  withBroadcastState({
+    channel: 'filter@store',
+    onMessageInterceptor: (event) => {
+      console.log('onMessageInterceptor', event);
+      return event.data;
+    }
   })
 );

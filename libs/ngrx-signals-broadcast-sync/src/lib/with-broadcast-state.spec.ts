@@ -1,355 +1,321 @@
-import { createServiceFactory, SpectatorService } from '@ngneat/spectator';
-import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
-
-import { MessageType } from './models';
+import { getState, patchState, signalStore, withState } from '@ngrx/signals';
 import { withBroadcastState } from './with-broadcast-state';
+import { TestBed } from '@angular/core/testing';
+import { BroadcastChannel } from 'worker_threads';
 
-// jest.mock('@ngrx/signals', () => ({
-//   ...jest.requireActual('@ngrx/signals'),
-//   patchState: jest.fn()
-// }));
-
-// jest.mock('./helpers', () => ({
-//   isInvalidUpdateMessage: jest.fn(),
-//   runGuard: jest.fn(),
-//   isOlder: jest.fn()
-// }));
-
-// const BroadcastChannelMock = jest.fn().mockImplementation((channel) => ({
-//   name: channel,
-//   postMessage: jest.fn(),
-//   close: jest.fn(),
-//   onmessage: jest.fn(),
-//   onmessageerror: jest.fn()
-// }));
-
-type State = { a: string | null; b: boolean | null };
-const onStubImplementation = jest.fn();
-const onMessageError = jest.fn();
-const onSkipFirstBroadcast = jest.fn();
-const onSkipDuplicatedBroadcast = jest.fn();
-const onSkipOlder = jest.fn();
-
-const RunGuardStore = signalStore(
-  withState<State>({ a: null, b: null }),
-  withBroadcastState({ channel: 'channel', onStubImplementation })
-);
-type RunGuardStore = InstanceType<typeof RunGuardStore>;
-
-const BasicStore = signalStore(
-  withState<State>({ a: null, b: null }),
-  withMethods((store) => ({
-    updateA: (a: string) => patchState(store, () => ({ a })),
-    toggleB: () => patchState(store, (s) => ({ b: s.b == null ? false : !s.b }))
-  })),
-  withBroadcastState({
-    channel: 'channel',
-    onStubImplementation,
-    onMessageError,
-    onSkipFirstBroadcast,
-    onSkipDuplicatedBroadcast,
-    onSkipOlder
-  })
-);
-type BasicStore = InstanceType<typeof BasicStore>;
+const initialState = { foo: 'bar' };
+const newState = { foo: 'bar2' };
+const channel = 'FooBar';
+const message = new MessageEvent('message', { data: newState });
+const messageError = new MessageEvent('messageerror', {});
 
 describe('withBroadcastState', () => {
-  let BroadcastChannelMock: jest.Mock;
+  it('adds methods for broadcast state', () => {
+    TestBed.runInInjectionContext(() => {
+      const Store = signalStore(withBroadcastState(channel));
+      const store = new Store();
 
-  beforeEach(() => {
-    BroadcastChannelMock = jest.fn().mockImplementation((channel) => ({
-      name: channel,
-      postMessage: jest.fn(),
-      close: jest.fn(),
-      onmessage: jest.fn(),
-      onmessageerror: jest.fn()
-    }));
-    window.BroadcastChannel = BroadcastChannelMock;
-  });
-
-  afterEach(() => {
-    jest.clearAllMocks();
-  });
-
-  afterAll(() => {
-    jest.restoreAllMocks();
-  });
-
-  describe('when runGuard is true', () => {
-    const createService = createServiceFactory(RunGuardStore);
-    let spectator: SpectatorService<RunGuardStore>;
-
-    beforeEach(() => {
-      jest.spyOn(require('./helpers'), 'runGuard').mockReturnValue(true);
-      spectator = createService();
-    });
-
-    // afterEach(() => {
-    //   jest.clearAllMocks();
-    //   // jest.restoreAllMocks();
-    // });
-
-    it('calls onStubImplementation hook', () => {
-      expect(onStubImplementation).toHaveBeenCalledTimes(1);
-      expect(onStubImplementation).toHaveBeenCalledWith(expect.any(String), expect.any(Function));
-    });
-
-    it('uses the stub implementation', () => {
-      const broadcastChannel = spectator.service.getBroadcastChannel();
-      expect(broadcastChannel).toBeNull();
+      expect(Object.keys(store)).toEqual(['getBroadcastChannel', 'postState', '_postState']);
     });
   });
 
-  describe('default behavior', () => {
-    const createService = createServiceFactory(BasicStore);
-    let spectator: SpectatorService<BasicStore>;
-    let store: BasicStore;
-    let broadcastChannel: BroadcastChannel;
-
-    beforeEach(() => {
-      spectator = createService();
-      store = spectator.service;
-      broadcastChannel = store.getBroadcastChannel() as BroadcastChannel;
+  describe('without BroadcastChannel', () => {
+    beforeAll(() => {
+      Reflect.set(globalThis, 'BroadcastChannel', undefined);
     });
 
-    // afterEach(() => {
-    //   jest.clearAllMocks();
-    //   // jest.restoreAllMocks();
-    // });
+    it('getBroadcastChannel() returns undefined', () => {
+      TestBed.runInInjectionContext(() => {
+        const Store = signalStore(withBroadcastState(channel));
+        const store = new Store();
 
-    describe('on load', () => {
-      it('does not call the onStubImplementation hook', () => {
-        expect(onStubImplementation).not.toHaveBeenCalled();
-      });
-
-      it('posts a request message', () => {
-        const postMessageSpy = jest.spyOn(broadcastChannel, 'postMessage');
-
-        expect(postMessageSpy).toHaveBeenCalledTimes(1);
-        expect(postMessageSpy).toHaveBeenNthCalledWith(1, { type: MessageType.Request });
-      });
-
-      it('does not post an update message with the initial loaded state', () => {
-        const postMessageSpy = jest.spyOn(broadcastChannel, 'postMessage');
-
-        expect(postMessageSpy).not.toHaveBeenCalledWith(expect.objectContaining({ type: MessageType.Update }));
-      });
-
-      it('calls the onSkipFirstBroadcast hook with the initial state', () => {
-        expect(onSkipFirstBroadcast).toHaveBeenCalledTimes(1);
-        expect(onSkipFirstBroadcast).toHaveBeenNthCalledWith(1, { a: null, b: null });
+        expect(store.getBroadcastChannel()).toBeUndefined();
       });
     });
 
-    // describe('on state change', () => {
-    //   it('posts an update message', () => {
-    //     const postMessageSpy = jest.spyOn(broadcastChannel, 'postMessage');
-    //     postMessageSpy.mockClear();
+    it('postState() does not throw error', () => {
+      TestBed.runInInjectionContext(() => {
+        const Store = signalStore(withBroadcastState(channel));
+        const store = new Store();
 
-    //     store.updateA('a');
-    //     spectator.flushEffects();
+        expect(() => store.postState()).not.toThrow();
+      });
+    });
 
-    //     expect(postMessageSpy).toHaveBeenCalledTimes(1);
-    //     expect(postMessageSpy).toHaveBeenNthCalledWith(1, {
-    //       type: MessageType.Update,
-    //       time: expect.any(Number),
-    //       state: { a: 'a', b: null }
-    //     });
-    //   });
+    it('_postState(state) does not throw error', () => {
+      TestBed.runInInjectionContext(() => {
+        const Store = signalStore(withBroadcastState(channel));
+        const store: any = new Store();
 
-    //   it('does not post an update message on duplicated state change', () => {
-    //     const postMessageSpy = jest.spyOn(broadcastChannel, 'postMessage');
-    //     postMessageSpy.mockClear();
+        expect(() => store._postState(newState)).not.toThrow();
+      });
+    });
 
-    //     store.updateA('a');
-    //     spectator.flushEffects();
-    //     store.updateA('a');
-    //     spectator.flushEffects();
+    it('runguard is called on init', () => {
+      TestBed.runInInjectionContext(() => {
+        const runGuard = jest.fn(() => true);
+        const Store = signalStore(withBroadcastState({ channel, runGuard }));
+        new Store();
 
-    //     expect(postMessageSpy).toHaveBeenCalledTimes(1);
-    //   });
+        expect(runGuard).toHaveBeenCalledTimes(1);
+        expect(runGuard).toHaveBeenNthCalledWith(1, 'browser');
+      });
+    });
+  });
 
-    //   it('calls onSkipDuplicatedBroadcast hook on duplicated state change', () => {
-    //     onSkipDuplicatedBroadcastMock.mockClear();
+  describe('with BroadcastChannel', () => {
+    beforeAll(() => {
+      Reflect.set(globalThis, 'BroadcastChannel', BroadcastChannel);
+    });
 
-    //     store.updateA('a');
-    //     spectator.flushEffects();
-    //     store.updateA('a');
-    //     spectator.flushEffects();
+    it('getBroadcastChannel() returns the BroadcastChannel', () => {
+      TestBed.runInInjectionContext(() => {
+        const Store = signalStore(withBroadcastState(channel));
+        const store = new Store();
+        const broadcast = store.getBroadcastChannel();
 
-    //     expect(onSkipDuplicatedBroadcastMock).toHaveBeenCalledTimes(1);
-    //     expect(onSkipDuplicatedBroadcastMock).toHaveBeenNthCalledWith(1, { a: 'a', b: null });
-    //   });
+        expect(broadcast).toBeInstanceOf(BroadcastChannel);
+        expect(broadcast?.name).toEqual(channel);
+      });
+    });
 
-    //   it('does not post an update message if the change is older', () => {
-    //     const isOlderSpy = jest.spyOn(require('./helpers'), 'isOlder');
-    //     isOlderSpy.mockReturnValue(true);
-    //     const postMessageSpy = jest.spyOn(broadcastChannel, 'postMessage');
-    //     postMessageSpy.mockClear();
+    it('postState() posts the current state', () => {
+      TestBed.runInInjectionContext(() => {
+        const Store = signalStore(withState(initialState), withBroadcastState(channel));
+        const store: any = new Store();
+        const spy = jest.spyOn(store.getBroadcastChannel(), 'postMessage');
 
-    //     store.updateA('a');
-    //     spectator.flushEffects();
+        expect(spy).not.toHaveBeenCalled();
 
-    //     expect(postMessageSpy).not.toHaveBeenCalled();
+        store.postState();
 
-    //     isOlderSpy.mockRestore();
-    //   });
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenNthCalledWith(1, initialState);
+      });
+    });
 
-    //   it('calls onSkipOlder hook if the change is older', () => {
-    //     const isOlderSpy = jest.spyOn(require('./helpers'), 'isOlder');
-    //     isOlderSpy.mockReturnValue(true);
-    //     onSkipOlderMock.mockClear();
+    it('_postState(state) posts the state from argument', () => {
+      TestBed.runInInjectionContext(() => {
+        const Store = signalStore(withState(initialState), withBroadcastState(channel));
+        const store: any = new Store();
+        const spy = jest.spyOn(store.getBroadcastChannel(), 'postMessage');
 
-    //     store.updateA('a');
-    //     spectator.flushEffects();
+        expect(spy).not.toHaveBeenCalled();
 
-    //     expect(onSkipOlderMock).toHaveBeenCalledTimes(1);
-    //     expect(onSkipOlderMock).toHaveBeenCalledWith(
-    //       expect.objectContaining({
-    //         lastTime: expect.any(Number),
-    //         time: expect.any(Number),
-    //         state: expect.any(Object)
-    //       })
-    //     );
+        store._postState(newState);
 
-    //     isOlderSpy.mockRestore();
-    //   });
-    // });
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenNthCalledWith(1, newState);
+      });
+    });
 
-    // describe('on update message', () => {
-    //   let channel: BroadcastChannel | null;
-    //   let message: MessageEvent;
+    it('posts the current state on state change', () => {
+      TestBed.runInInjectionContext(() => {
+        const Store = signalStore(withState(initialState), withBroadcastState(channel));
+        const store: any = new Store();
+        const spy = jest.spyOn(store.getBroadcastChannel(), 'postMessage');
+        TestBed.flushEffects();
 
-    //   beforeEach(() => {
-    //     channel = store.getBroadcastChannel();
-    //     message = new MessageEvent('message', {
-    //       data: { type: MessageType.Update, time: 1, state: { a: 1, b: null } }
-    //     });
-    //   });
+        expect(spy).not.toHaveBeenCalled();
 
-    //   it('updates the state with the message state', () => {
-    //     const patchStateSpy = jest.spyOn(require('@ngrx/signals'), 'patchState');
-    //     patchStateSpy.mockClear();
+        patchState(store, newState);
+        TestBed.flushEffects();
 
-    //     channel?.onmessage?.(message);
-    //     spectator.flushEffects();
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenNthCalledWith(1, newState);
+      });
+    });
 
-    //     expect(patchStateSpy).toHaveBeenCalledTimes(1);
-    //     expect(patchStateSpy).toHaveBeenNthCalledWith(1, expect.any(Object), { a: 1, b: null });
+    it('sets the state from message event', () => {
+      TestBed.runInInjectionContext(() => {
+        const Store = signalStore(withState(initialState), withBroadcastState(channel));
+        const store: any = new Store();
+        const broadcast = store.getBroadcastChannel();
 
-    //     patchStateSpy.mockRestore();
-    //   });
+        expect(getState(store)).toEqual(initialState);
 
-    //   it('does not update the state if message is older', () => {
-    //     const patchStateSpy = jest.spyOn(require('@ngrx/signals'), 'patchState');
-    //     patchStateSpy.mockClear();
-    //     const isOlderSpy = jest.spyOn(require('./helpers'), 'isOlder');
-    //     isOlderSpy.mockReturnValue(true);
+        broadcast.onmessage?.(message);
 
-    //     channel?.onmessage?.(message);
-    //     spectator.flushEffects();
+        expect(getState(store)).toEqual(newState);
+      });
+    });
 
-    //     expect(patchStateSpy).not.toHaveBeenCalled();
+    it('does not post the updated state on message event', () => {
+      TestBed.runInInjectionContext(() => {
+        const Store = signalStore(withBroadcastState(channel));
+        const store: any = new Store();
+        const broadcast = store.getBroadcastChannel();
+        const spy = jest.spyOn(broadcast, 'postMessage');
 
-    //     patchStateSpy.mockRestore();
-    //     isOlderSpy.mockRestore();
-    //   });
+        expect(spy).not.toHaveBeenCalled();
 
-    //   it('calls onSkipOlder hook if message is older', () => {
-    //     const patchStateSpy = jest.spyOn(require('@ngrx/signals'), 'patchState');
-    //     patchStateSpy.mockClear();
-    //     const isOlderSpy = jest.spyOn(require('./helpers'), 'isOlder');
-    //     isOlderSpy.mockReturnValue(true);
-    //     onSkipOlderMock.mockClear();
+        broadcast.onmessage?.(message);
 
-    //     channel?.onmessage?.(message);
-    //     spectator.flushEffects();
+        expect(spy).not.toHaveBeenCalled();
+      });
+    });
 
-    //     expect(onSkipOlderMock).toHaveBeenCalledTimes(1);
-    //     expect(onSkipOlderMock).toHaveBeenCalledWith(
-    //       expect.objectContaining({
-    //         lastTime: expect.any(Number),
-    //         time: message.data.time,
-    //         state: message.data.state
-    //       })
-    //     );
+    it('onMessageError does nothing', () => {
+      TestBed.runInInjectionContext(() => {
+        const Store = signalStore(withBroadcastState(channel));
+        const store: any = new Store();
+        const broadcast = store.getBroadcastChannel();
+        const spy = jest.spyOn(broadcast, 'onmessageerror');
 
-    //     isOlderSpy.mockRestore();
-    //   });
+        expect(spy).not.toHaveBeenCalled();
 
-    //   it('does not repost the received message ', () => {
-    //     const postMessageSpy = jest.spyOn(broadcastChannel, 'postMessage');
-    //     postMessageSpy.mockClear();
+        broadcast.onmessageerror?.(messageError);
 
-    //     channel?.onmessage?.(message);
-    //     spectator.flushEffects();
+        expect(spy).toHaveBeenCalledTimes(1);
+        expect(spy).toHaveBeenNthCalledWith(1, messageError);
+      });
+    });
 
-    //     expect(postMessageSpy).not.toHaveBeenCalled();
+    it('runguard is called on init', () => {
+      TestBed.runInInjectionContext(() => {
+        const runGuard = jest.fn(() => false);
+        const Store = signalStore(withBroadcastState({ channel, runGuard }));
+        new Store();
 
-    //     postMessageSpy.mockRestore();
-    //   });
+        expect(runGuard).toHaveBeenCalledTimes(1);
+        expect(runGuard).toHaveBeenNthCalledWith(1, 'browser');
+      });
+    });
 
-    //   it('calls onMessageError hook if message update is not valid', () => {
-    //     const patchStateSpy = jest.spyOn(require('@ngrx/signals'), 'patchState');
-    //     patchStateSpy.mockClear();
-    //     const isInvalidUpdateMessageSpy = jest.spyOn(require('./helpers'), 'isInvalidUpdateMessage');
-    //     isInvalidUpdateMessageSpy.mockReturnValue(true);
-    //     onMessageErrorMock.mockClear();
+    it('effectInterceptor is called on effect', () => {
+      TestBed.runInInjectionContext(() => {
+        const effectInterceptor = jest.fn((state) => state);
+        const Store = signalStore(withState(initialState), withBroadcastState({ channel, effectInterceptor }));
+        new Store();
+        TestBed.flushEffects();
 
-    //     channel?.onmessage?.(message);
-    //     spectator.flushEffects();
+        expect(effectInterceptor).toHaveBeenCalledTimes(1);
+        expect(effectInterceptor).toHaveBeenNthCalledWith(1, initialState);
+      });
+    });
 
-    //     expect(onMessageErrorMock).toHaveBeenCalledTimes(1);
-    //     expect(onMessageErrorMock).toHaveBeenCalledWith(message);
+    it('effectInterceptor stops execution if returns null', () => {
+      TestBed.runInInjectionContext(() => {
+        const effectInterceptor = jest.fn(() => null);
+        const Store = signalStore(withState(initialState), withBroadcastState({ channel, effectInterceptor }));
+        const store: any = new Store();
+        const spy = jest.spyOn(store, '_postState');
+        TestBed.flushEffects();
+        patchState(store, newState);
+        TestBed.flushEffects();
 
-    //     isInvalidUpdateMessageSpy.mockRestore();
-    //   });
-    // });
+        expect(spy).not.toHaveBeenCalled();
+      });
+    });
 
-    // describe('getBroadcastChannel()', () => {
-    //   it('returns BroadcastChannel instance', () => {
-    //     const bc = store.getBroadcastChannel();
+    it('postMessageInterceptor is called on postState', () => {
+      TestBed.runInInjectionContext(() => {
+        const postMessageInterceptor = jest.fn((state) => state);
+        const Store = signalStore(withState(initialState), withBroadcastState({ channel, postMessageInterceptor }));
+        const store = new Store();
 
-    //     expect(bc).not.toBeNull();
-    //     expect(bc?.name).toEqual('channel');
-    //   });
-    // });
+        expect(postMessageInterceptor).not.toHaveBeenCalled();
 
-    // describe('broadcastState()', () => {
-    //   it('does not post an update message due to duplicated state', () => {
-    //     const postMessageSpy = jest.spyOn(broadcastChannel, 'postMessage');
-    //     postMessageSpy.mockClear();
+        store.postState();
 
-    //     store.broadcastState();
+        expect(postMessageInterceptor).toHaveBeenCalledTimes(1);
+        expect(postMessageInterceptor).toHaveBeenNthCalledWith(1, initialState);
+      });
+    });
 
-    //     expect(postMessageSpy).not.toHaveBeenCalled();
-    //   });
+    it('postMessageInterceptor stops execution if returns null', () => {
+      TestBed.runInInjectionContext(() => {
+        const postMessageInterceptor = jest.fn(() => null);
+        const Store = signalStore(withState(initialState), withBroadcastState({ channel, postMessageInterceptor }));
+        const store: any = new Store();
+        const spy = jest.spyOn(store.getBroadcastChannel(), 'postMessage');
 
-    //   it('forces posting an update message with the last state when true is passed', () => {
-    //     const postMessageSpy = jest.spyOn(broadcastChannel, 'postMessage');
-    //     postMessageSpy.mockClear();
+        expect(spy).not.toHaveBeenCalled();
 
-    //     store.broadcastState(true);
+        store.postState();
 
-    //     expect(postMessageSpy).toHaveBeenCalledTimes(1);
-    //     expect(postMessageSpy).toHaveBeenNthCalledWith(1, {
-    //       type: MessageType.Update,
-    //       time: expect.any(Number),
-    //       state: { a: null, b: null }
-    //     });
-    //   });
-    // });
+        expect(spy).not.toHaveBeenCalled();
+      });
+    });
 
-    // describe('requestBroadcastState()', () => {
-    //   it('posts a request message', () => {
-    //     const postMessageSpy = jest.spyOn(broadcastChannel, 'postMessage');
-    //     postMessageSpy.mockClear();
+    it('onMessageInterceptor is called on message', () => {
+      TestBed.runInInjectionContext(() => {
+        const onMessageInterceptor = jest.fn((message) => message.data);
+        const Store = signalStore(withBroadcastState({ channel, onMessageInterceptor }));
+        const store: any = new Store();
+        const broadcast = store.getBroadcastChannel();
 
-    //     store.requestBroadcastState();
+        expect(onMessageInterceptor).not.toHaveBeenCalled();
 
-    //     expect(postMessageSpy).toHaveBeenCalledTimes(1);
-    //     expect(postMessageSpy).toHaveBeenNthCalledWith(1, { type: MessageType.Request });
-    //   });
-    // });
+        broadcast.onmessage?.(message);
+
+        expect(onMessageInterceptor).toHaveBeenCalledTimes(1);
+        expect(onMessageInterceptor).toHaveBeenNthCalledWith(1, message);
+      });
+    });
+
+    it('onMessageInterceptor stops execution if returns null', () => {
+      TestBed.runInInjectionContext(() => {
+        const Store = signalStore(
+          withState(initialState),
+          withBroadcastState({ channel, onMessageInterceptor: () => null })
+        );
+        const store: any = new Store();
+        const broadcast = store.getBroadcastChannel();
+
+        expect(getState(store)).toEqual(initialState);
+
+        broadcast.onmessage?.(message);
+
+        expect(getState(store)).toEqual(initialState);
+      });
+    });
+
+    it('onMessageInterceptor stops execution if returns no object', () => {
+      TestBed.runInInjectionContext(() => {
+        const Store = signalStore(
+          withState(initialState),
+          withBroadcastState({ channel, onMessageInterceptor: () => '' as unknown as object })
+        );
+        const store: any = new Store();
+        const broadcast = store.getBroadcastChannel();
+
+        expect(getState(store)).toEqual(initialState);
+
+        broadcast.onmessage?.(message);
+
+        expect(getState(store)).toEqual(initialState);
+      });
+    });
+
+    it('onMessageError is called on message error', () => {
+      TestBed.runInInjectionContext(() => {
+        const onMessageError = jest.fn((message) => undefined);
+        const Store = signalStore(withBroadcastState({ channel, onMessageError }));
+        const store: any = new Store();
+        const broadcast = store.getBroadcastChannel();
+
+        expect(onMessageError).not.toHaveBeenCalled();
+
+        broadcast.onmessageerror?.(messageError);
+
+        expect(onMessageError).toHaveBeenCalledTimes(1);
+        expect(onMessageError).toHaveBeenNthCalledWith(1, messageError);
+      });
+    });
+
+    it('onDestroy closes the BroadcastChannel', () => {
+      TestBed.runInInjectionContext(() => {
+        const Store = signalStore(withBroadcastState(channel));
+        const store: any = new Store();
+        const spy = jest.spyOn(store.getBroadcastChannel(), 'close');
+
+        expect(spy).not.toHaveBeenCalled();
+
+        TestBed.resetTestingModule();
+
+        expect(spy).toHaveBeenCalledTimes(1);
+      });
+    });
   });
 });

@@ -8,133 +8,192 @@ import {
   getState,
   patchState
 } from '@ngrx/signals';
-import isEqual from 'lodash.isequal';
 
-import { isInvalidUpdateMessage, isOlder, runGuard } from './helpers';
-import {
-  BroadcastSyncStub,
-  Message,
-  Options,
-  BroadcastSyncFeatureResult,
-  UpdateMessage,
-  MessageType,
-  NOOP
-} from './models';
+import { isBroadcastChannelAvailable } from './is-broadcast-channel-available';
 
 /**
- * Adds broadcast synchronization capabilities to a Signal Store.
+ * Configuration options for setting up a broadcast channel synchronization feature
+ * that enables state sharing across different browser contexts.
  *
- * This function enables state synchronization between multiple clients using the `BroadcastChannel API`.
- * It allows clients to request, send, and patch the state across multiple contexts.
+ * @template State - The state object type that extends `object`.
+ */
+export type Options<State extends object> = {
+  /**
+   * The unique identifier for the `BroadcastChannel` used for state synchronization.
+   */
+  channel: string;
+
+  /**
+   * Optional guard function to determine if synchronization should be disabled based on platform.
+   *
+   * @param platformId - An object representing the current platform.
+   * @returns `true` if synchronization should be disabled; `false` to enable.
+   */
+  runGuard?: (platformId: object) => boolean;
+
+  /**
+   * Optional interceptor function triggered upon receiving a message via the `BroadcastChannel`.
+   * It can modify or filter the incoming state. Returning `null` stops further processing.
+   *
+   * @param event - The message event containing the incoming state.
+   * @returns A partial state object to merge, or `null` to ignore the message.
+   */
+  onMessageInterceptor?: (event: MessageEvent<State>) => Partial<State> | null;
+
+  /**
+   * Optional interceptor function that modifies the outgoing state before broadcasting it.
+   * Returning `null` cancels the broadcast.
+   *
+   * @param state - The current state intended for broadcasting.
+   * @returns A partial state object to broadcast, or `null` to cancel.
+   */
+  postMessageInterceptor?: (state: State) => Partial<State> | null;
+
+  /**
+   * Optional interceptor function that processes the state after any effects are applied.
+   * Allows selective modification before broadcasting.
+   *
+   * @param state - The state after effects have been processed.
+   * @returns A partial state object to use, or `null` to ignore further changes.
+   */
+  effectInterceptor?: (state: State) => Partial<State> | null;
+
+  /**
+   * Optional error handler for managing errors encountered while processing incoming messages.
+   *
+   * @param event - The message event that caused the error.
+   */
+  onMessageError?: (event: MessageEvent) => void;
+};
+
+/**
+ * Describes the result of the broadcast state feature, which extends `SignalStoreFeatureResult`.
+ * This feature offers methods for handling broadcast channels, enabling state synchronization
+ * across multiple browser tabs or contexts.
+ */
+export type BroadcastStateFeatureResult = SignalStoreFeatureResult & {
+  methods: {
+    /**
+     * Returns the current `BroadcastChannel` instance for broadcasting state changes.
+     * If the channel is unavailable or uninitialized, it returns `undefined`.
+     *
+     * @returns The active `BroadcastChannel` instance or `undefined`.
+     *
+     * @see https://developer.mozilla.org/en-US/docs/Web/API/Broadcast_Channel_API
+     */
+    getBroadcastChannel(): BroadcastChannel | undefined;
+
+    /**
+     * Broadcasts the current state to all listeners on the `BroadcastChannel`.
+     * Intended for broadcasting state updates to synchronized contexts.
+     */
+    postState(): void;
+
+    /**
+     * Directly sends a provided state object over the broadcast channel.
+     * Typically used internallyOk.
+     *
+     * @param state - The state object to be broadcasted over the channel.
+     */
+    _postState(state: {}): void;
+  };
+};
+
+/**
+ * Creates a `SignalStoreFeature` that enables state synchronization across different browser contexts
+ * using the `BroadcastChannel` API.
  *
- * @template Input The type of the store feature result.
- * @param channel The name of the broadcast channel to use.
- * @returns A Signal Store feature with broadcast capabilities.
+ * @template Input - The expected structure of the `SignalStore` state.
+ *
+ * @param channel - The name of the `BroadcastChannel` used for state synchronization.
+ *
+ * @returns A `SignalStoreFeature` configured to synchronize state across contexts.
+ *
+ * @example
+ * ```typescript
+ * const store = signalStore(
+ *   withState(...),
+ *   withBroadcastState('my-channel')
+ * );
+ * ```
+ *
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/Broadcast_Channel_API
+ * @see SignalStoreFeature
  */
 export function withBroadcastState<Input extends SignalStoreFeatureResult>(
   channel: string
-): SignalStoreFeature<Input, BroadcastSyncFeatureResult>;
+): SignalStoreFeature<Input, BroadcastStateFeatureResult>;
 
 /**
- * Adds broadcast synchronization capabilities to a Signal Store.
+ * Creates a `SignalStoreFeature` with configurable options that enable state synchronization
+ * across browser contexts using the `BroadcastChannel` API. The feature provides custom
+ * configuration for intercepting messages, handling errors, and platform-specific synchronization.
  *
- * This function enables state synchronization between multiple clients using the `BroadcastChannel API`.
- * It allows clients to request, send, and patch the state across multiple contexts.
+ * @template Input - Represents the structure of the `SignalStore` state.
  *
- * @template Input The type of the store feature result.
- * @param options A configuration object specifying the broadcast channel name and additional behavior for state synchronization.
- * @returns A Signal Store feature with customizable broadcast capabilities.
+ * @param options - Configuration options that specify channel name, interceptors, and platform guards.
+ *
+ * @returns A configured `SignalStoreFeature` to synchronize state based on the provided options.
+ *
+ * @example
+ * ```typescript
+ * const options = {
+ *   channel: 'my-channel',
+ *   runGuard: (platformId) => !isBroadcastChannelAvailable(platformId),
+ *   onMessageInterceptor: (event) => event.data,
+ *   postMessageInterceptor: (state) => state,
+ *   effectInterceptor: (state) => state,
+ *   onMessageError: (event) => console.error('onMessageError', event),
+ * };
+ *
+ * const store = signalStore(
+ *   withState(...),
+ *   withBroadcastState(options)
+ * );
+ * ```
+ *
+ * @see https://developer.mozilla.org/en-US/docs/Web/API/Broadcast_Channel_API
+ * @see SignalStoreFeature
+ * @see Options
  */
 export function withBroadcastState<Input extends SignalStoreFeatureResult>(
   options: Options<Input['state']>
-): SignalStoreFeature<Input, BroadcastSyncFeatureResult>;
+): SignalStoreFeature<Input, BroadcastStateFeatureResult>;
 
-/**
- * Adds broadcast synchronization capabilities to a Signal Store.
- *
- * This function enables state synchronization between multiple clients using the `BroadcastChannel API`.
- * It can be invoked either with a broadcast channel name or with a configuration object (`Options`).
- * It allows clients to request, send, and patch the state across multiple contexts.
- *
- * @template Input The type of the store feature result.
- * @param channelOrOptions Either the name of the broadcast channel or a configuration object.
- * If a string is provided, it is treated as the broadcast channel name.
- * If an `Options` object is provided, it allows further configuration of the broadcast behavior.
- * @returns A Signal Store feature with customizable broadcast capabilities.
- */
 export function withBroadcastState<Input extends SignalStoreFeatureResult>(
   channelOrOptions: Options<Input['state']> | string
-): SignalStoreFeature<Input, BroadcastSyncFeatureResult> {
+): SignalStoreFeature<Input, BroadcastStateFeatureResult> {
   const {
     channel,
-    requestState = true,
-    skipFirst = true,
-    skipOlder = true,
-    select = (state: Input['state']) => state,
-    messageEventInterceptor = (event: MessageEvent<Message<Input['state']>>) => event.data,
-    broadcastStateInterceptor = (state: Input['state']) => state,
-    onStubImplementation = NOOP,
-    onMessageError = NOOP,
-    onSkipFirstBroadcast = NOOP,
-    onSkipDuplicatedBroadcast = NOOP,
-    onSkipOlder = NOOP
+    runGuard = (platformId: object) => !isBroadcastChannelAvailable(platformId),
+    onMessageInterceptor = (event: MessageEvent<Input['state']>) => event.data,
+    postMessageInterceptor = (state: Input['state']) => state,
+    effectInterceptor = (state: Input['state']) => state,
+    onMessageError = (event: MessageEvent) => null
   } = typeof channelOrOptions === 'string' ? { channel: channelOrOptions } : channelOrOptions;
 
-  let stateChannel: BroadcastChannel | null;
-  let lastSyncedState: Partial<Input['state']> | null = null;
-  let isFirst = skipFirst;
-  let lastTime = 0;
+  let broadcastChannel: BroadcastChannel | undefined;
+  let shouldPostMessage = false;
 
   return signalStoreFeature(
-    withMethods((store, platformId = inject(PLATFORM_ID)) => {
-      if (runGuard(platformId)) {
-        onStubImplementation(platformId, window?.BroadcastChannel);
-        return BroadcastSyncStub;
-      }
-
+    withMethods((store) => {
       return {
-        getBroadcastChannel(): BroadcastChannel | null {
-          return stateChannel;
+        getBroadcastChannel(): BroadcastChannel | undefined {
+          return broadcastChannel;
         },
 
-        broadcastState(skipChecks = false): void {
-          let state = select(getState(store));
+        postState(): void {
+          this._postState(getState(store));
+        },
 
-          if (!skipChecks && isFirst) {
-            isFirst = false;
-            onSkipFirstBroadcast(state);
+        _postState(state: Input['state']): void {
+          const interceptedState: Partial<Input['state']> | null = postMessageInterceptor(state);
+
+          if (interceptedState == null) {
             return;
           }
 
-          if (!skipChecks && isEqual(state, lastSyncedState)) {
-            return onSkipDuplicatedBroadcast(state);
-          }
-
-          state = broadcastStateInterceptor(state);
-          const time = Date.now();
-
-          if (!skipChecks && isOlder({ time, lastTime, skipOlder })) {
-            return onSkipOlder({ lastTime, time, state });
-          }
-
-          lastSyncedState = state; // Avoid broadcast duplicated state
-          lastTime = time;
-          stateChannel?.postMessage({ type: MessageType.Update, time, state });
-        },
-
-        requestBroadcastState(): void {
-          lastSyncedState = select(getState(store)); // Avoid broadcast initial state
-          stateChannel?.postMessage({ type: MessageType.Request });
-        },
-
-        _patchStateFromBroadcast(message: UpdateMessage<Input['state']>) {
-          if (isOlder({ time: message.time, lastTime, skipOlder })) {
-            return onSkipOlder({ lastTime, time: message.time, state: message.state });
-          }
-
-          lastTime = message.time;
-          lastSyncedState = message.state; // Avoid broadcast this state change
-          patchState(store, message.state);
+          broadcastChannel?.postMessage(interceptedState);
         }
       };
     }),
@@ -144,43 +203,36 @@ export function withBroadcastState<Input extends SignalStoreFeatureResult>(
           return;
         }
 
-        stateChannel = new BroadcastChannel(channel);
+        broadcastChannel = new BroadcastChannel(channel);
 
         effect(() => {
-          store.broadcastState();
+          let state: Input['state'] | null = getState(store);
+
+          state = effectInterceptor(state);
+
+          if (shouldPostMessage && state != null) {
+            store._postState(state);
+          } else {
+            shouldPostMessage = true;
+          }
         });
 
-        if (requestState) {
-          store.requestBroadcastState();
-        }
+        broadcastChannel.onmessage = (event: MessageEvent<Input['state']>) => {
+          let state: Partial<Input['state']> | null = onMessageInterceptor(event);
 
-        stateChannel.onmessage = (event: MessageEvent<Message<Input['state']>>) => {
-          const message = messageEventInterceptor(event);
-
-          switch (message.type) {
-            case MessageType.Request: {
-              store.broadcastState(true);
-              break;
-            }
-            case MessageType.Update: {
-              if (isInvalidUpdateMessage(message)) {
-                return onMessageError(event);
-              }
-
-              store._patchStateFromBroadcast(message);
-              break;
-            }
-            default: {
-              onMessageError(event);
-            }
+          if (typeof state !== 'object' || state === null) {
+            return;
           }
+
+          shouldPostMessage = false;
+          patchState(store, state);
         };
 
-        stateChannel.onmessageerror = (event: MessageEvent) => onMessageError(event);
+        broadcastChannel.onmessageerror = onMessageError;
       },
 
       onDestroy() {
-        stateChannel?.close();
+        broadcastChannel?.close();
       }
     })
   );
